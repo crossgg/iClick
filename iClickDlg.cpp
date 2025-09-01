@@ -33,6 +33,7 @@ HHOOK g_hMouseHook = NULL;
 HHOOK g_hKeyboardHook = NULL;
 CiClickDlg* g_pThis = nullptr;
 INT64 timeTamp = 0;
+WORD record_hotkey=VK_F10;
 
 
 
@@ -995,6 +996,7 @@ void CiClickDlg::OnRecordHotKeyChanged()
 	WORD wVirtualKeyCode;
 	WORD wModifiers;
 	record_ipt.GetHotKey(wVirtualKeyCode, wModifiers);
+	record_hotkey = wVirtualKeyCode;
 	if (wModifiers) {
 		MessageBox(L"录制快捷键带有修饰符会影响录制\n只可设置单个快捷键");
 		return;
@@ -1820,7 +1822,6 @@ LRESULT CALLBACK LowLevelMouseProc(int nCode, WPARAM wParam, LPARAM lParam) {
 
 
 
-
 CString VirtualKeyCodeToCString(DWORD vkCode) {
 	// 完整键码映射表（包括所有修饰键的左右版本）
 	static const std::vector<std::pair<UINT, CString>> nonCharKeys = {
@@ -1913,6 +1914,15 @@ void ListAndVectorInstertKeyBd(int x, int y, DWORD keyCode, BOOL isDown) {
 	strX.Format(_T("%d"), x);
 	strY.Format(_T("%d"), y);
 
+
+	if (record_hotkey == keyCode) {
+		g_pThis = nullptr;
+		if (g_hMouseHook) UnhookWindowsHookEx(g_hMouseHook);
+		if (g_hKeyboardHook) UnhookWindowsHookEx(g_hKeyboardHook);
+		g_hMouseHook = g_hKeyboardHook = NULL;
+		timeTamp = 0;
+		return;
+	}
 
 	PointInfo pI;
 	INT64 nowTime = GetMillisecondTimestamp();
