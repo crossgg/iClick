@@ -32,11 +32,14 @@ Key_Select::~Key_Select()
 BOOL Key_Select::OnInitDialog()
 {
     CDialogEx::OnInitDialog();
- 
+
     m_hotKeyInfo = {};
     m_hotkey.SetFocus();
+
+
     return FALSE;
 }
+
 
 
 
@@ -63,7 +66,6 @@ END_MESSAGE_MAP()
 
 static const IID IID_IKey_Select =
 {0x8c97c43c,0x6ee5,0x49aa,{0xb7,0x3b,0xbe,0x44,0xf9,0x0d,0x39,0xdd}};
-
 
 
 void Key_Select::OnOK() {

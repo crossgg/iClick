@@ -20,6 +20,7 @@ public:
 
 	virtual BOOL PreTranslateMessage(MSG* pMsg) {
 		if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_ESCAPE) {
+			m_hotkey.SetHotKey(VK_ESCAPE, 0); // 虚拟键码为VK_ESCAPE，修饰符为0
 			return TRUE;
 		}
 		if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_RETURN) {
@@ -53,7 +54,6 @@ public:
 protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支持
 	virtual BOOL OnInitDialog();
-
 	DECLARE_MESSAGE_MAP()
 public:
 	CHotKeyCtrl m_hotkey;

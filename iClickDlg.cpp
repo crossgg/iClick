@@ -410,9 +410,9 @@ UINT FrontThreadOption(LPVOID pParam) {
 
 	while (Wnd->isClick) {
 		for (const auto& point : pointInfo) {
-			point.gap > 0 ? Sleep(point.gap) : NULL;		// 延迟
-
 			if (!Wnd->isClick) return 0;
+
+			point.gap > 0 ? Sleep(point.gap) : NULL;		// 延迟
 
 			CPoint ptCursor = { point.x,point.y };
 
@@ -442,6 +442,8 @@ UINT FrontThreadOption(LPVOID pParam) {
 			SetCursorPos(x, y);
 
 			for (int times = point.times; times > 0; times--) {
+				if (!Wnd->isClick) return 0;
+
 				if (point.event_type == 1) {		// 鼠标事件
 					if (point.moust_key == 1) {// 单击
 						SendLeftClick();
@@ -610,7 +612,6 @@ UINT BackThreadOption(LPVOID pParam)
 	
 	while (Wnd->isClick) {
 		for (const auto& point : pointInfo) {
-
 			if (!Wnd->isClick) return 0;
 			if (!::IsWindow(point.hwnd)) continue;
 			point.gap > 0 ? Sleep(point.gap) : NULL;		// 延迟
@@ -629,14 +630,20 @@ UINT BackThreadOption(LPVOID pParam)
 			}
 
 			for (int times = point.times; times > 0; times--) {
+				if (!Wnd->isClick) return 0;
 				switch (point.event_type) {
-				case 1:
+				case 1:    // 鼠标事件
 				{
 					switch (point.moust_key) {
 					case 1:			// 单击
 					{
-						pTempWnd->SendMessage(WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(x, y));
-						pTempWnd->SendMessage(WM_LBUTTONUP, MK_LBUTTON, MAKELPARAM(x, y));
+					/*	pTempWnd->SendMessage(WM_LBUTTONDOWN, MK_LBUTTON, MAKELPARAM(x, y));
+						pTempWnd->SendMessage(WM_LBUTTONUP, MK_LBUTTON, MAKELPARAM(x, y));*/
+						SetCursorPos(x, y);
+
+						// 2. 模拟一次完整的左键单击（按下和弹起）
+						mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
+						mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
 						break;
 					}
 					case 2:			// 双击
@@ -687,9 +694,8 @@ UINT BackThreadOption(LPVOID pParam)
 					}
 					break;
 				}
-				case 2:
+				case 2:  // 键盘事件
 				{
-					// 处理键盘事件
 					pTempWnd->SetForegroundWindow();  // 确保目标窗口在前台
 					DWORD modifiers = point.hotKeyInfo.wModifiers;
 					DWORD virtualKey = point.hotKeyInfo.wVirtualKey;
