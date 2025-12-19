@@ -203,8 +203,8 @@ BOOL CiClickDlg::OnInitDialog()
 	hotkey1.SetHotKey(config.watch_hotkey, NULL);
 	keybd_hotkey_ipt.SetHotKey(config.keybd_hotkey, NULL);
 	
-	start_hotkey.SetHotKey(config.start_hotkey.wVirtualKey ? config.start_hotkey.wVirtualKey : VK_F8, config.start_hotkey.wModifiers);
-	RegisterHotKey(m_hWnd, 0x124, config.start_hotkey.wModifiers, config.start_hotkey.wVirtualKey ? config.start_hotkey.wVirtualKey : VK_F8);
+	start_hotkey.SetHotKey(config.start_hotkey.wVirtualKey, config.start_hotkey.wModifiers);
+	RegisterHotKey(m_hWnd, 0x124, config.start_hotkey.wModifiers, config.start_hotkey.wVirtualKey);
 
 
 	random_check.SetCheck(config.isRandomClick);
@@ -983,6 +983,8 @@ void CiClickDlg::OnStartHotKeyChanged()
 	WORD wVirtualKeyCode;
 	WORD wModifiers;
 	start_hotkey.GetHotKey(wVirtualKeyCode, wModifiers);
+	config.start_hotkey.wVirtualKey = wVirtualKeyCode;
+	config.start_hotkey.wModifiers = wModifiers;
 	UnregisterHotKey(m_hWnd, 0x124); 
 	RegisterHotKey(m_hWnd, 0x124, wModifiers, wVirtualKeyCode);
 }

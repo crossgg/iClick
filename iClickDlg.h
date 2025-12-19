@@ -69,7 +69,7 @@ typedef struct Config {
 	UINT gap=20; // 总操作间隔
 	UINT loop=0; // 循环间隔
 	INT Event_Type = 1;  // 1：鼠标事件   2：键盘事件
-	HotKeyInfo start_hotkey = {};		//	开始快捷键
+	HotKeyInfo start_hotkey = { VK_F8, 0, L"F8" };		//	开始快捷键
 	HotKeyInfo mouse_hotkey = {};		//	鼠标事件快捷键
 	HotKeyInfo keyboard_hotkey = {};		//	键盘事件快捷键
 	vector<PointInfo> List;
