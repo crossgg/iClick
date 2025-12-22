@@ -1,4 +1,4 @@
-﻿
+
 // iClickDlg.h: 头文件
 //
 
@@ -6,6 +6,8 @@
 
 
 #define WM_MOUSEBUTTONDOWN WM_USER+777
+#define IDC_REMARK_EDIT 60001
+#define WM_UPDATE_CLICK_STATE (WM_APP + 101)
 #include <vector>
 using namespace std;
 
@@ -33,6 +35,7 @@ typedef struct PointInfo {
 	int scrollDistance = 0;   // 滚轮滚动距离
 	CString title;		// 窗口标题
 	HotKeyInfo hotKeyInfo;	// 键盘信息
+	CString remark;		// 备注
 }PointInfo;
 
 
@@ -102,6 +105,16 @@ public:
 	protected:
 	virtual void DoDataExchange(CDataExchange* pDX);	// DDX/DDV 支持
 	virtual BOOL PreTranslateMessage(MSG* pMsg) {
+		if (is_remark_editing && remark_edit.GetSafeHwnd() && GetFocus() && GetFocus()->GetSafeHwnd() == remark_edit.GetSafeHwnd()) {
+			if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_RETURN) {
+				CommitRemarkEdit(TRUE);
+				return TRUE;
+			}
+			if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_ESCAPE) {
+				CommitRemarkEdit(FALSE);
+				return TRUE;
+			}
+		}
 		if (pMsg->message == WM_KEYDOWN && pMsg->wParam == VK_ESCAPE) {
 			return TRUE;
 		}
@@ -126,6 +139,7 @@ protected:
 	afx_msg void OnSysCommand(UINT nID, LPARAM lParam);
 	afx_msg void OnPaint();
 	afx_msg HCURSOR OnQueryDragIcon();
+	afx_msg LRESULT OnUpdateClickState(WPARAM wParam, LPARAM lParam);
 	DECLARE_MESSAGE_MAP()
 public:
 	Config config;
@@ -204,13 +218,22 @@ public:
 	void ReadHotKey(CHotKeyCtrl& hotkey, CString Section, CString filePath);
 	CString ReadSection(CString path, CString Section, CString Key);
 	vector<CString> GetPointSections(CString iniPath);
+	void RefreshStepColumn();
+	void CommitRemarkEdit(BOOL save);
+	void UpdateClickControls();
 	afx_msg void SetTimes2();
 	afx_msg void SetTimes1();
+	afx_msg void EditRemark();
+	afx_msg void OnRemarkEditKillFocus();
 	CButton read_btn;
 	CButton save_btn;
 	HHOOK g_hMouseHook = NULL;
 	HHOOK g_hKeyboardHook = NULL;
 	CHotKeyCtrl record_ipt;
 	CStatic record_text;
+	CEdit remark_edit;
+	BOOL is_remark_editing = FALSE;
+	int remark_edit_row = -1;
+	CString remark_edit_original;
 };
 

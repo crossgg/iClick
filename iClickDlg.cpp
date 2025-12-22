@@ -34,6 +34,18 @@ CString VirtualKeyCodeToCString(DWORD vkCode);
 CiClickDlg* g_pThis = nullptr;
 INT64 timeTamp = 0;
 
+namespace {
+constexpr int kColStep = 0;
+constexpr int kColX = 1;
+constexpr int kColY = 2;
+constexpr int kColOpType = 3;
+constexpr int kColOpMethod = 4;
+constexpr int kColTitle = 5;
+constexpr int kColGap = 6;
+constexpr int kColTimes = 7;
+constexpr int kColRemark = 8;
+}
+
 
 
 #ifdef _DEBUG
@@ -81,6 +93,7 @@ BEGIN_MESSAGE_MAP(CiClickDlg, CDialogEx)
 	ON_WM_SYSCOMMAND()
 	ON_WM_PAINT()
 	ON_WM_QUERYDRAGICON()
+	ON_MESSAGE(WM_UPDATE_CLICK_STATE, &CiClickDlg::OnUpdateClickState)
 	ON_EN_CHANGE(IDC_EDIT2, &CiClickDlg::OnEnChangeEdit2)
 	ON_BN_CLICKED(IDC_CHECK2, &CiClickDlg::OnBnClickedCheck2)
 	ON_BN_CLICKED(IDC_BUTTON1, &CiClickDlg::OnBnClickedButton1)
@@ -126,10 +139,26 @@ BEGIN_MESSAGE_MAP(CiClickDlg, CDialogEx)
 	ON_BN_CLICKED(IDC_BUTTON2, &CiClickDlg::OnBnClickedButton2)
 	ON_COMMAND(ID_32795, &CiClickDlg::SetTimes2)
 	ON_COMMAND(ID_32796, &CiClickDlg::SetTimes1)
+	ON_COMMAND(ID_32798, &CiClickDlg::EditRemark)
+	ON_COMMAND(ID_32799, &CiClickDlg::EditRemark)
+	ON_EN_KILLFOCUS(IDC_REMARK_EDIT, &CiClickDlg::OnRemarkEditKillFocus)
 END_MESSAGE_MAP()
 
 
 // CiClickDlg 消息处理程序
+
+LRESULT CiClickDlg::OnUpdateClickState(WPARAM wParam, LPARAM lParam)
+{
+	UpdateClickControls();
+	return 0;
+}
+
+void CiClickDlg::UpdateClickControls()
+{
+	save_btn.EnableWindow(!config.isClick);
+	read_btn.EnableWindow(!config.isClick);
+	start_btn.SetWindowTextW(config.isClick ? _T("停止") : _T("开始"));
+}
 
 BOOL CiClickDlg::OnInitDialog()
 {
@@ -166,13 +195,15 @@ BOOL CiClickDlg::OnInitDialog()
 	list.GetClientRect(&rect);
 	int width = rect.Width() / 4;*/
 	list.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);	// 整行选择、网格线
-	list.InsertColumn(0, _T("X坐标"), LVCFMT_LEFT, 50);
-	list.InsertColumn(1, _T("Y坐标"), LVCFMT_LEFT, 50);	
-	list.InsertColumn(2, _T("操作类型"), LVCFMT_LEFT,70);	
-	list.InsertColumn(3, _T("操作方式"), LVCFMT_LEFT, 70);	
-	list.InsertColumn(4, _T("窗口标题"), LVCFMT_LEFT, 120);
-	list.InsertColumn(5, _T("延迟"), LVCFMT_LEFT, 60);
-	list.InsertColumn(6, _T("执行次数"), LVCFMT_LEFT, 60);
+	list.InsertColumn(kColStep, _T("步骤"), LVCFMT_LEFT, 45);
+	list.InsertColumn(kColX, _T("X坐标"), LVCFMT_LEFT, 50);
+	list.InsertColumn(kColY, _T("Y坐标"), LVCFMT_LEFT, 50);
+	list.InsertColumn(kColOpType, _T("操作类型"), LVCFMT_LEFT, 70);
+	list.InsertColumn(kColOpMethod, _T("操作方式"), LVCFMT_LEFT, 70);
+	list.InsertColumn(kColTitle, _T("窗口标题"), LVCFMT_LEFT, 120);
+	list.InsertColumn(kColGap, _T("延迟"), LVCFMT_LEFT, 60);
+	list.InsertColumn(kColTimes, _T("执行次数"), LVCFMT_LEFT, 60);
+	list.InsertColumn(kColRemark, _T("备注"), LVCFMT_LEFT, 160);
 
 
 	// 为列表视图控件添加全行选中和栅格风格   
@@ -407,7 +438,12 @@ UINT FrontThreadOption(LPVOID pParam) {
 
 	while (Wnd->config.isClick) {
 		for (const auto& point : Wnd->config.List) {
-			if (!Wnd->config.isClick) return 0;
+			if (!Wnd->config.isClick) {
+				if (::IsWindow(Wnd->m_hWnd)) {
+					::PostMessage(Wnd->m_hWnd, WM_UPDATE_CLICK_STATE, 0, 0);
+				}
+				return 0;
+			}
 
 			point.gap > 0 ? Sleep(point.gap) : NULL;		// 延迟
 
@@ -439,7 +475,12 @@ UINT FrontThreadOption(LPVOID pParam) {
 			SetCursorPos(x, y);
 
 			for (int times = point.times; times > 0; times--) {
-				if (!Wnd->config.isClick) return 0;
+				if (!Wnd->config.isClick) {
+					if (::IsWindow(Wnd->m_hWnd)) {
+						::PostMessage(Wnd->m_hWnd, WM_UPDATE_CLICK_STATE, 0, 0);
+					}
+					return 0;
+				}
 
 				if (point.event_type == 1) {		// 鼠标事件
 					if (point.moust_key == 1) {// 单击
@@ -590,13 +631,16 @@ UINT FrontThreadOption(LPVOID pParam) {
 			loop_times--;
 			if (loop_times == 0) {
 				Wnd->config.isClick = false;
-				Wnd->start_btn.SetWindowTextW(_T("开始"));
+				::PostMessage(Wnd->m_hWnd, WM_UPDATE_CLICK_STATE, 0, 0);
 				return 0;
 			}
 		}
 
 	}
 
+	if (::IsWindow(Wnd->m_hWnd)) {
+		::PostMessage(Wnd->m_hWnd, WM_UPDATE_CLICK_STATE, 0, 0);
+	}
 	return 0;
 }
 
@@ -608,7 +652,12 @@ UINT BackThreadOption(LPVOID pParam)
 	
 	while (Wnd->config.isClick) {
 		for (const auto& point : Wnd->config.List) {
-			if (!Wnd->config.isClick) return 0;
+			if (!Wnd->config.isClick) {
+				if (::IsWindow(Wnd->m_hWnd)) {
+					::PostMessage(Wnd->m_hWnd, WM_UPDATE_CLICK_STATE, 0, 0);
+				}
+				return 0;
+			}
 			
 			HWND targetHwnd = point.hwnd;
 			// 如果句柄失效（例如重新读取的脚本），尝试通过标题和类名找回
@@ -636,7 +685,12 @@ UINT BackThreadOption(LPVOID pParam)
 			}
 
 			for (int times = point.times; times > 0; times--) {
-				if (!Wnd->config.isClick) return 0;
+				if (!Wnd->config.isClick) {
+					if (::IsWindow(Wnd->m_hWnd)) {
+						::PostMessage(Wnd->m_hWnd, WM_UPDATE_CLICK_STATE, 0, 0);
+					}
+					return 0;
+				}
 				switch (point.event_type) {
 				case 1:    // 鼠标事件
 				{
@@ -731,10 +785,13 @@ UINT BackThreadOption(LPVOID pParam)
 			loop_times--;
 			if (loop_times == 0) {
 				Wnd->config.isClick = false;
-				Wnd->start_btn.SetWindowTextW(_T("开始"));
+				::PostMessage(Wnd->m_hWnd, WM_UPDATE_CLICK_STATE, 0, 0);
 				return 0;
 			}
 		}
+	}
+	if (::IsWindow(Wnd->m_hWnd)) {
+		::PostMessage(Wnd->m_hWnd, WM_UPDATE_CLICK_STATE, 0, 0);
 	}
 	return 0; // 线程退出码
 }
@@ -749,7 +806,6 @@ void CiClickDlg::OnBnClickedButton1()
 	
 	if (config.isClick == TRUE) { 
 		config.isClick = FALSE;
-		start_btn.SetWindowTextW(_T("开始"));
 	} 
 	else {
 				config.isClick = TRUE;
@@ -759,11 +815,8 @@ void CiClickDlg::OnBnClickedButton1()
 				else {
 					AfxBeginThread(BackThreadOption, this);
 				}
-				start_btn.SetWindowTextW(_T("停止"));
-
 			}
-	save_btn.EnableWindow(!config.isClick);
-	read_btn.EnableWindow(!config.isClick);
+	UpdateClickControls();
 
 }
 
@@ -833,13 +886,17 @@ void CiClickDlg::OnHotKey(UINT nHotKeyId, UINT nKey1, UINT nKey2)
 		x.Format(_T("%d"), ptCursor.x);
 		y.Format(_T("%d"), ptCursor.y);
 		int iRow = list.GetItemCount(); //获取行数
-		list.InsertItem(iRow, x);
-		list.SetItemText(iRow, 1, y);
-		list.SetItemText(iRow, 2, L"鼠标");
-		list.SetItemText(iRow, 3, L"左键单击");
-		list.SetItemText(iRow, 4, str);
-		list.SetItemText(iRow, 5, _T("0"));
-		list.SetItemText(iRow, 6, _T("1"));
+		CString step;
+		step.Format(_T("%d"), iRow);
+		list.InsertItem(iRow, step);
+		list.SetItemText(iRow, kColX, x);
+		list.SetItemText(iRow, kColY, y);
+		list.SetItemText(iRow, kColOpType, L"鼠标");
+		list.SetItemText(iRow, kColOpMethod, L"左键单击");
+		list.SetItemText(iRow, kColTitle, str);
+		list.SetItemText(iRow, kColGap, _T("0"));
+		list.SetItemText(iRow, kColTimes, _T("1"));
+		list.SetItemText(iRow, kColRemark, _T(""));
 
 		// 同步到数组
 		PointInfo pI;
@@ -863,7 +920,6 @@ void CiClickDlg::OnHotKey(UINT nHotKeyId, UINT nKey1, UINT nKey2)
 		}
 
 		if (config.isClick == TRUE) {
-			start_btn.SetWindowTextW(_T("开始"));
 			config.isClick = FALSE;
 		}
 		else {
@@ -874,11 +930,8 @@ void CiClickDlg::OnHotKey(UINT nHotKeyId, UINT nKey1, UINT nKey2)
 			else {
 				AfxBeginThread(BackThreadOption, this);
 			}
-			start_btn.SetWindowTextW(_T("停止"));
-
 		}
-		save_btn.EnableWindow(!config.isClick);
-		read_btn.EnableWindow(!config.isClick);
+		UpdateClickControls();
 	}
 	else if (nHotKeyId == 0x126) {
 		if (config.start_watch == FALSE) return;
@@ -901,14 +954,18 @@ void CiClickDlg::OnHotKey(UINT nHotKeyId, UINT nKey1, UINT nKey2)
 		x.Format(_T("%d"), ptCursor.x);
 		y.Format(_T("%d"), ptCursor.y);
 		int iRow = list.GetItemCount(); //获取行数
-		list.InsertItem(iRow, x);
-		list.SetItemText(iRow, 1, y);
+		CString step;
+		step.Format(_T("%d"), iRow);
+		list.InsertItem(iRow, step);
+		list.SetItemText(iRow, kColX, x);
+		list.SetItemText(iRow, kColY, y);
 	
-		list.SetItemText(iRow, 2, L"键盘");
-		list.SetItemText(iRow, 3, L"");
-		list.SetItemText(iRow, 4, str);
-		list.SetItemText(iRow, 5, _T("0"));
-		list.SetItemText(iRow, 6, _T("1"));
+		list.SetItemText(iRow, kColOpType, L"键盘");
+		list.SetItemText(iRow, kColOpMethod, L"");
+		list.SetItemText(iRow, kColTitle, str);
+		list.SetItemText(iRow, kColGap, _T("0"));
+		list.SetItemText(iRow, kColTimes, _T("1"));
+		list.SetItemText(iRow, kColRemark, _T(""));
 
 		// 同步到数组
 		PointInfo pI;
@@ -1053,6 +1110,7 @@ void CiClickDlg::OnMenuRClick()
 		config.List.erase(config.List.begin() + select_row); // 删除第select_row个元素
 	}
 	list.DeleteItem(select_row);
+	RefreshStepColumn();
 }
 
 
@@ -1135,21 +1193,25 @@ void CiClickDlg::OnLButtonUp(UINT nFlags, CPoint point)
 		PointInfo pI;
 
 
-		list.InsertItem(iRow, x);
-		list.SetItemText(iRow, 1, y);
+		CString step;
+		step.Format(_T("%d"), iRow);
+		list.InsertItem(iRow, step);
+		list.SetItemText(iRow, kColX, x);
+		list.SetItemText(iRow, kColY, y);
 		if (config.Event_Type == 1) {
-			list.SetItemText(iRow, 2, L"鼠标");
-			list.SetItemText(iRow, 3, L"左键单击");
+			list.SetItemText(iRow, kColOpType, L"鼠标");
+			list.SetItemText(iRow, kColOpMethod, L"左键单击");
 		}
 		else if (config.Event_Type == 2) {
-			list.SetItemText(iRow, 2, L"键盘");
-			list.SetItemText(iRow, 3, L"");
+			list.SetItemText(iRow, kColOpType, L"键盘");
+			list.SetItemText(iRow, kColOpMethod, L"");
 			pI.keybd_key = 1;
 
 		}
-		list.SetItemText(iRow, 4, str);
-		list.SetItemText(iRow, 5, _T("0"));
-		list.SetItemText(iRow, 6, _T("1"));
+		list.SetItemText(iRow, kColTitle, str);
+		list.SetItemText(iRow, kColGap, _T("0"));
+		list.SetItemText(iRow, kColTimes, _T("1"));
+		list.SetItemText(iRow, kColRemark, _T(""));
 
 		pI.x = ptCursor.x;
 		pI.y = ptCursor.y;
@@ -1230,7 +1292,7 @@ void CiClickDlg::ChangeToSingleClick()
 {
 	// TODO: 修改点击方式为单击
 	config.List[select_row].moust_key = 1;
-	list.SetItemText(select_row, 3, L"左键单击");
+	list.SetItemText(select_row, kColOpMethod, L"左键单击");
 
 }
 
@@ -1238,7 +1300,7 @@ void CiClickDlg::ChangeToDoubleClick()
 {
 	// TODO: 修改点击方式为双击
 	config.List[select_row].moust_key = 2;
-	list.SetItemText(select_row, 3, L"左键双击");
+	list.SetItemText(select_row, kColOpMethod, L"左键双击");
 }
 
 
@@ -1249,6 +1311,7 @@ void CiClickDlg::DeleteSingleRow()
 		config.List.erase(config.List.begin() + select_row); // 删除第select_row个元素
 	}
 	list.DeleteItem(select_row);
+	RefreshStepColumn();
 }
 
 void CiClickDlg::DeleteAllRow()
@@ -1257,6 +1320,87 @@ void CiClickDlg::DeleteAllRow()
 	config.List.clear(); // 删除所有元素
 	list.DeleteAllItems(); // 删除所有行
 	config.isScript = FALSE;
+}
+
+void CiClickDlg::CommitRemarkEdit(BOOL save)
+{
+	if (!is_remark_editing) return;
+	if (remark_edit_row < 0 || remark_edit_row >= list.GetItemCount()) {
+		remark_edit.ShowWindow(SW_HIDE);
+		is_remark_editing = FALSE;
+		remark_edit_row = -1;
+		remark_edit_original.Empty();
+		return;
+	}
+
+	CString text;
+	remark_edit.GetWindowTextW(text);
+	if (!save) {
+		text = remark_edit_original;
+	}
+
+	if (remark_edit_row >= 0 && remark_edit_row < (int)config.List.size()) {
+		config.List[remark_edit_row].remark = text;
+	}
+	list.SetItemText(remark_edit_row, kColRemark, text);
+
+	remark_edit.ShowWindow(SW_HIDE);
+	is_remark_editing = FALSE;
+	remark_edit_row = -1;
+	remark_edit_original.Empty();
+}
+
+void CiClickDlg::RefreshStepColumn()
+{
+	int rowCount = list.GetItemCount();
+	for (int i = 0; i < rowCount; i++) {
+		CString step;
+		step.Format(_T("%d"), i);
+		list.SetItemText(i, kColStep, step);
+	}
+}
+
+void CiClickDlg::EditRemark()
+{
+	if (select_row < 0 || select_row >= list.GetItemCount()) return;
+
+	if (is_remark_editing) {
+		CommitRemarkEdit(TRUE);
+	}
+
+	remark_edit_row = select_row;
+	if (remark_edit_row >= 0 && remark_edit_row < (int)config.List.size()) {
+		remark_edit_original = config.List[remark_edit_row].remark;
+	}
+	else {
+		remark_edit_original = list.GetItemText(remark_edit_row, kColRemark);
+	}
+
+	CRect rect;
+	list.GetSubItemRect(remark_edit_row, kColRemark, LVIR_LABEL, rect);
+	list.ClientToScreen(&rect);
+	ScreenToClient(&rect);
+
+	if (!remark_edit.GetSafeHwnd()) {
+		remark_edit.Create(WS_CHILD | WS_BORDER | ES_AUTOHSCROLL, rect, this, IDC_REMARK_EDIT);
+		remark_edit.SetFont(list.GetFont());
+	}
+
+	CString current = (remark_edit_row >= 0 && remark_edit_row < (int)config.List.size())
+		? config.List[remark_edit_row].remark
+		: list.GetItemText(remark_edit_row, kColRemark);
+
+	remark_edit.MoveWindow(rect);
+	remark_edit.SetWindowTextW(current);
+	remark_edit.ShowWindow(SW_SHOW);
+	remark_edit.SetFocus();
+	remark_edit.SetSel(0, -1);
+	is_remark_editing = TRUE;
+}
+
+void CiClickDlg::OnRemarkEditKillFocus()
+{
+	CommitRemarkEdit(TRUE);
 }
 
 void CiClickDlg::OnDeleteAll()
@@ -1273,7 +1417,7 @@ void CiClickDlg::OpenKeySelectDlg()
 	Key_Select keySelect;
 	if (keySelect.DoModal() == IDOK) { // 阻塞直到模态框关闭[7](@ref)
 		config.List[select_row].hotKeyInfo = keySelect.m_hotKeyInfo;
-		list.SetItemText(select_row, 3, keySelect.m_hotKeyInfo.strDisplay);
+		list.SetItemText(select_row, kColOpMethod, keySelect.m_hotKeyInfo.strDisplay);
 	}
 }
 
@@ -1285,7 +1429,7 @@ void CiClickDlg::OpenGapModal()
 		config.List[select_row].gap = gapModal.gap;
 		CString str;
 		str.Format(_T("%d"), gapModal.gap);
-		list.SetItemText(select_row, 5, str);
+		list.SetItemText(select_row, kColGap, str);
 	}
 }
 
@@ -1298,7 +1442,7 @@ void CiClickDlg::OpenGapDialog1()
 		config.List[select_row].gap = gapModal.gap;
 		CString str;
 		str.Format(_T("%d"), gapModal.gap);
-		list.SetItemText(select_row, 5, str);
+		list.SetItemText(select_row, kColGap, str);
 	}
 }
 
@@ -1317,8 +1461,8 @@ void CiClickDlg::OnEnChangeEdit6()
 void CiClickDlg::ChangeToKeyBd()
 {
 	config.List[select_row].event_type = 2;
-	list.SetItemText(select_row, 2, L"键盘");
-	list.SetItemText(select_row, 3, L"");
+	list.SetItemText(select_row, kColOpType, L"键盘");
+	list.SetItemText(select_row, kColOpMethod, L"");
 }
 
 // 修改为鼠标事件
@@ -1326,22 +1470,22 @@ void CiClickDlg::ChangeToMouse()
 {
 	config.List[select_row].event_type = 1;
 	config.List[select_row].moust_key = 1;
-	list.SetItemText(select_row, 2, L"鼠标");
-	list.SetItemText(select_row, 3, L"左键单击");
+	list.SetItemText(select_row, kColOpType, L"鼠标");
+	list.SetItemText(select_row, kColOpMethod, L"左键单击");
 }
 
 // 修改为滚轮上滚
 void CiClickDlg::ChangeToMidUp()
 {
 	config.List[select_row].moust_key = 3;
-	list.SetItemText(select_row, 3, L"滚轮上滚");
+	list.SetItemText(select_row, kColOpMethod, L"滚轮上滚");
 }
 
 // 修改为滚轮下滚
 void CiClickDlg::ChangeToMidDown()
 {
 	config.List[select_row].moust_key = 4;
-	list.SetItemText(select_row, 3, L"滚轮下滚");
+	list.SetItemText(select_row, kColOpMethod, L"滚轮下滚");
 }
 
 
@@ -1349,21 +1493,21 @@ void CiClickDlg::ChangeToMidDown()
 void CiClickDlg::ChangeToMidClick()
 {
 	config.List[select_row].moust_key = 5;
-	list.SetItemText(select_row, 3, L"滚轮单击");
+	list.SetItemText(select_row, kColOpMethod, L"滚轮单击");
 }
 
 // 修改为右键单击
 void CiClickDlg::ChangeToRightClick()
 {
 	config.List[select_row].moust_key = 6;
-	list.SetItemText(select_row, 3, L"右键单击");
+	list.SetItemText(select_row, kColOpMethod, L"右键单击");
 }
 
 // 修改为右键双击
 void CiClickDlg::ChangeToRightDbClick()
 {
 	config.List[select_row].moust_key = 7;
-	list.SetItemText(select_row, 3, L"右键双击");
+	list.SetItemText(select_row, kColOpMethod, L"右键双击");
 }
 
 
@@ -1501,6 +1645,7 @@ void CiClickDlg::OnBnClickedButton3()
 			SaveInitConfig(strSection, _T("Keybd_Key"), str, filePath);
 
 			SaveInitConfig(strSection, _T("Title"), point.title, filePath);
+			SaveInitConfig(strSection, _T("Remark"), point.remark, filePath);
 
 			if (point.event_type == 2) {
 				DWORD modifiers = point.hotKeyInfo.wModifiers;
@@ -1627,6 +1772,7 @@ void CiClickDlg::OnBnClickedButton2()
 			CString ScrollDistance = ReadSection(filePath, Section, _T("ScrollDistance"));
 			CString Keybd_Key = ReadSection(filePath, Section, _T("Keybd_Key"));
 			CString Title = ReadSection(filePath, Section, _T("Title"));
+			CString Remark = ReadSection(filePath, Section, _T("Remark"));
 			CString Hwnd = ReadSection(filePath, Section, _T("Hwnd"));
 
 			point.x = (UINT)_ttoi(X);
@@ -1641,6 +1787,7 @@ void CiClickDlg::OnBnClickedButton2()
 			point.keybd_key = _ttoi(Keybd_Key);
 			if (point.keybd_key == 0) point.keybd_key = 1;
 			point.title = Title;
+			point.remark = Remark;
 			point.hwnd = reinterpret_cast<HWND>(_tcstoul(Hwnd, nullptr, 16));
 
 			if (point.event_type == 2) {
@@ -1656,11 +1803,14 @@ void CiClickDlg::OnBnClickedButton2()
 				if (Alt == _T("1")) point.hotKeyInfo.wModifiers |= HOTKEYF_ALT;
 			}
 
-			list.InsertItem(index, X);
-			list.SetItemText(index, 1, Y);
+			CString step;
+			step.Format(_T("%d"), index);
+			list.InsertItem(index, step);
+			list.SetItemText(index, kColX, X);
+			list.SetItemText(index, kColY, Y);
 
 			CString opTypeStr = (point.event_type == 1) ? L"鼠标" : L"键盘";
-			list.SetItemText(index, 2, opTypeStr);
+			list.SetItemText(index, kColOpType, opTypeStr);
 
 			CString opMethodStr = L"";
 			if (point.event_type == 1) {
@@ -1687,13 +1837,14 @@ void CiClickDlg::OnBnClickedButton2()
 				if (point.hotKeyInfo.wModifiers & HOTKEYF_SHIFT) opMethodStr = L"Shift+" + opMethodStr;
 				if (point.hotKeyInfo.wModifiers & HOTKEYF_ALT) opMethodStr = L"Alt+" + opMethodStr;
 			}
-			list.SetItemText(index, 3, opMethodStr);
-			list.SetItemText(index, 4, Title);
-			list.SetItemText(index, 5, Gap);
+			list.SetItemText(index, kColOpMethod, opMethodStr);
+			list.SetItemText(index, kColTitle, Title);
+			list.SetItemText(index, kColGap, Gap);
 
 			CString strTimes;
 			strTimes.Format(_T("%d"), point.times);
-			list.SetItemText(index, 6, strTimes);
+			list.SetItemText(index, kColTimes, strTimes);
+			list.SetItemText(index, kColRemark, Remark);
 
 			config.List.push_back(point);
 			index++;
@@ -1712,7 +1863,7 @@ void CiClickDlg::SetTimes2()
 		config.List[select_row].times = timesModal.times;
 		CString str;
 		str.Format(_T("%d"), timesModal.times);
-		list.SetItemText(select_row, 6, str);
+		list.SetItemText(select_row, kColTimes, str);
 	}
 }
 
@@ -1723,7 +1874,7 @@ void CiClickDlg::SetTimes1()
 		config.List[select_row].times = timesModal.times;
 		CString str;
 		str.Format(_T("%d"), timesModal.times);
-		list.SetItemText(select_row, 6, str);
+		list.SetItemText(select_row, kColTimes, str);
 	}
 }
 
@@ -1799,16 +1950,20 @@ void ListAndVectorInstert(int x, int y, int mouse_key, int scrollDistance = 0) {
 		pI.gap = 0;
 	}
 
-	g_pThis->list.InsertItem(iRow, strX);
-	g_pThis->list.SetItemText(iRow, 1, strY);
-	g_pThis->list.SetItemText(iRow, 2, L"鼠标");
-	g_pThis->list.SetItemText(iRow, 3, eventTypeStr);
-	g_pThis->list.SetItemText(iRow, 4, strTitle);
+	CString step;
+	step.Format(_T("%d"), iRow);
+	g_pThis->list.InsertItem(iRow, step);
+	g_pThis->list.SetItemText(iRow, kColX, strX);
+	g_pThis->list.SetItemText(iRow, kColY, strY);
+	g_pThis->list.SetItemText(iRow, kColOpType, L"鼠标");
+	g_pThis->list.SetItemText(iRow, kColOpMethod, eventTypeStr);
+	g_pThis->list.SetItemText(iRow, kColTitle, strTitle);
 
 	CString timeStr;
 	timeStr.Format(_T("%d"), pI.gap);
-	g_pThis->list.SetItemText(iRow, 5, timeStr);
-	g_pThis->list.SetItemText(iRow, 6, _T("1"));
+	g_pThis->list.SetItemText(iRow, kColGap, timeStr);
+	g_pThis->list.SetItemText(iRow, kColTimes, _T("1"));
+	g_pThis->list.SetItemText(iRow, kColRemark, _T(""));
 
 
 	pI.x = pt.x;
@@ -2015,16 +2170,20 @@ void ListAndVectorInstertKeyBd(int x, int y, DWORD keyCode, BOOL isDown) {
 	CString downStr = keyStr + _T("按下");
 	CString upStr = keyStr + _T("松开");
 
-	g_pThis->list.InsertItem(iRow, strX);
-	g_pThis->list.SetItemText(iRow, 1, strY);
-	g_pThis->list.SetItemText(iRow, 2, L"键盘");
-	g_pThis->list.SetItemText(iRow, 3, isDown ? downStr : upStr);
-	g_pThis->list.SetItemText(iRow, 4, strTitle);
+	CString step;
+	step.Format(_T("%d"), iRow);
+	g_pThis->list.InsertItem(iRow, step);
+	g_pThis->list.SetItemText(iRow, kColX, strX);
+	g_pThis->list.SetItemText(iRow, kColY, strY);
+	g_pThis->list.SetItemText(iRow, kColOpType, L"键盘");
+	g_pThis->list.SetItemText(iRow, kColOpMethod, isDown ? downStr : upStr);
+	g_pThis->list.SetItemText(iRow, kColTitle, strTitle);
 
 	CString timeStr;
 	timeStr.Format(_T("%d"), pI.gap);
-	g_pThis->list.SetItemText(iRow, 5, timeStr);
-	g_pThis->list.SetItemText(iRow, 6, _T("1"));
+	g_pThis->list.SetItemText(iRow, kColGap, timeStr);
+	g_pThis->list.SetItemText(iRow, kColTimes, _T("1"));
+	g_pThis->list.SetItemText(iRow, kColRemark, _T(""));
 
 	pI.x = pt.x;
 	pI.y = pt.y;
