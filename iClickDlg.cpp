@@ -840,26 +840,22 @@ void CiClickDlg::OnBnClickedCheck3()
 
 
 void CiClickDlg::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags) {
-	CPoint ptCursor;
-	GetCursorPos(&ptCursor);//获取鼠标位置
-	CString str;
-	str.Format(_T("X: %d, Y: %d"), ptCursor.x, ptCursor.y);
-	hwnd_ipt.SetWindowTextW(str);
+	CDialogEx::OnKeyDown(nChar, nRepCnt, nFlags);
 }
 
 
 // 获取窗口句柄的十进制字符串
-CString GetWindowHandleDecimal(CWnd* pWnd) {
+CString GetWindowHandleString(CWnd* pWnd) {
 	if (pWnd == nullptr || !pWnd->GetSafeHwnd())
 		return _T("无效句柄");
 
 	// 将 HWND 转为无符号整数
-	UINT_PTR hDecimal = reinterpret_cast<UINT_PTR>(pWnd->GetSafeHwnd());
+	UINT_PTR hHandle = reinterpret_cast<UINT_PTR>(pWnd->GetSafeHwnd());
 
-	// 格式化为十进制字符串
-	CString strDecimal;
-	strDecimal.Format(_T("%llu"), hDecimal); // 64位系统用 %llu, 32位用 %lu
-	return strDecimal;
+	// 格式化为十进制字符串，不显示前面的0
+	CString strHandle;
+	strHandle.Format(_T("%llu"), (unsigned __int64)hHandle); 
+	return strHandle;
 }
 
 
@@ -879,6 +875,10 @@ void CiClickDlg::OnHotKey(UINT nHotKeyId, UINT nKey1, UINT nKey2)
 		CString str;
 		hWnd->GetWindowTextW(str);
 		wnd_title_ipt.SetWindowTextW(str);
+
+		// 窗口句柄
+		CString strHandle = GetWindowHandleString(hWnd);
+		hwnd_ipt.SetWindowTextW(strHandle);
 
 	
 
@@ -947,6 +947,10 @@ void CiClickDlg::OnHotKey(UINT nHotKeyId, UINT nKey1, UINT nKey2)
 		CString str;
 		hWnd->GetWindowTextW(str);
 		wnd_title_ipt.SetWindowTextW(str);
+
+		// 窗口句柄
+		CString strHandle = GetWindowHandleString(hWnd);
+		hwnd_ipt.SetWindowTextW(strHandle);
 
 
 
@@ -1181,7 +1185,7 @@ void CiClickDlg::OnLButtonUp(UINT nFlags, CPoint point)
 		wnd_title_ipt.SetWindowTextW(str);
 
 		// 窗口句柄
-		CString strHandle = GetWindowHandleDecimal(hWnd);
+		CString strHandle = GetWindowHandleString(hWnd);
 		hwnd_ipt.SetWindowTextW(strHandle);
 
 		::ScreenToClient(hWnd->m_hWnd, &ptCursor);
@@ -1259,8 +1263,7 @@ void CiClickDlg::OnMouseMove(UINT nFlags, CPoint point)
 		wnd_title_ipt.SetWindowTextW(str);
 
 		// 窗口句柄
-		CString str2;
-		CString strHandle = GetWindowHandleDecimal(hWnd);
+		CString strHandle = GetWindowHandleString(hWnd);
 		hwnd_ipt.SetWindowTextW(strHandle);
 		
 	}
@@ -1621,7 +1624,7 @@ void CiClickDlg::OnBnClickedButton3()
 			str.Format(_T("%d"), point.y);
 			SaveInitConfig(strSection, _T("Y"), str, filePath);
 
-			str.Format(_T("%p"), point.hwnd);
+			str.Format(_T("%llu"), (unsigned __int64)point.hwnd);
 			SaveInitConfig(strSection, _T("Hwnd"), str, filePath);
 
 			SaveInitConfig(strSection, _T("Class_Name"), point.className, filePath);
@@ -1788,7 +1791,7 @@ void CiClickDlg::OnBnClickedButton2()
 			if (point.keybd_key == 0) point.keybd_key = 1;
 			point.title = Title;
 			point.remark = Remark;
-			point.hwnd = reinterpret_cast<HWND>(_tcstoul(Hwnd, nullptr, 16));
+			point.hwnd = reinterpret_cast<HWND>(_tcstoui64(Hwnd, nullptr, 10));
 
 			if (point.event_type == 2) {
 				CString Ctrl = ReadSection(filePath, Section, _T("Ctrl"));
